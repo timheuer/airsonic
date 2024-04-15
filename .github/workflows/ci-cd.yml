@@ -34,16 +34,18 @@ jobs:
         docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/airsonic:${{ github.sha }} .
         docker push ${{ secrets.ACR_LOGIN_SERVER }}/airsonic:${{ github.sha }}
 
-    - name: Deploy to Azure Container Instance
-      uses: azure/aci-deploy@v1
+    - name: Set up Azure CLI
+      uses: azure/login@v1
       with:
-        resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
-        dns-name-label: airsonic-${{ github.run_id }}
-        image: ${{ secrets.ACR_LOGIN_SERVER }}/airsonic:${{ github.sha }}
-        registry-login-server: ${{ secrets.ACR_LOGIN_SERVER }}
-        registry-username: ${{ secrets.ACR_USERNAME }}
-        registry-password: ${{ secrets.ACR_PASSWORD }}
-        location: ${{ secrets.AZURE_LOCATION }}
-        name: airsonic
-        cpu: 1
-        memory: 1.5
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy to Azure Kubernetes Service (AKS)
+      run: |
+        az aks get-credentials --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }}
+        kubectl config current-context
+        kubectl apply -f deployment.yml
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+        IMAGE: ${{ secrets.ACR_LOGIN_SERVER }}/airsonic:${{ github.sha }}
+        ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
